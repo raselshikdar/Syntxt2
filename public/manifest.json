@@ -1,0 +1,20 @@
+{
+  "name": "syntxt_",
+  "short_name": "syntxt_",
+  "description": "A minimalist, text-only microblogging platform for hackers and thinkers.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#00ff00",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["social", "entertainment", "productivity"],
+  "lang": "en-US"
+}

@@ -1,0 +1,287 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                  String               @id @default(cuid())
+  handle              String               @unique
+  email               String?              @unique
+  password            String?
+  displayName         String?
+  bio                 String?
+  avatar              String?
+  banner              String?
+  role                UserRole             @default(USER)
+  isBanned            Boolean              @default(false)
+  isVerified          Boolean              @default(false)
+  verificationCode    String?
+  resetCode           String?
+  resetCodeExpiry     DateTime?
+  restrictions        String?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  bookmarks           Bookmark[]
+  following           Follow[]             @relation("UserFollowing")
+  followers           Follow[]             @relation("UserFollowers")
+  likes               Like[]
+  replyLikes          ReplyLike[]
+  receivedMessages    Message[]            @relation("ReceivedMessages")
+  sentMessages        Message[]            @relation("SentMessages")
+  notifications       Notification[]
+  posts               Post[]
+  replies             Reply[]
+  reports             Report[]             @relation("UserReports")
+  reportedBy          Report[]             @relation("ReportedBy")
+  reposts             Repost[]
+  supportTickets      SupportTicket[]
+  verificationRequest VerificationRequest?
+  reviewedRequests    VerificationRequest[] @relation("VerificationReviewer")
+}
+
+model Post {
+  id           String       @id @default(cuid())
+  content      String
+  imageUrl     String?
+  imageAlt     String?
+  linkUrl      String?
+  linkTitle    String?
+  linkDesc     String?
+  linkImage    String?
+  authorId     String
+  parentPostId String?
+  isDeleted    Boolean      @default(false)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  bookmarks    Bookmark[]
+  likes        Like[]
+  author       User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  replies      Reply[]
+  reports      Report[]
+  reposts      Repost[]
+  parentPost   Post?        @relation("PostReplies", fields: [parentPostId], references: [id])
+  childPosts   Post[]       @relation("PostReplies")
+  hashtags     Hashtag[]
+  quotePost    QuotePost?
+
+  @@index([authorId])
+  @@index([createdAt])
+  @@index([parentPostId])
+}
+
+model Reply {
+  id             String   @id @default(cuid())
+  content        String
+  imageUrl       String?
+  postId         String
+  authorId       String
+  parentReplyId  String?
+  createdAt      DateTime @default(now())
+  author         User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  post           Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  parentReply    Reply?   @relation("NestedReplies", fields: [parentReplyId], references: [id], onDelete: Cascade)
+  replies        Reply[]  @relation("NestedReplies")
+  likes          ReplyLike[]
+
+  @@index([postId])
+  @@index([authorId])
+  @@index([parentReplyId])
+}
+
+model ReplyLike {
+  id        String   @id @default(cuid())
+  replyId   String
+  userId    String
+  createdAt DateTime @default(now())
+  reply     Reply    @relation(fields: [replyId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([replyId, userId])
+  @@index([replyId])
+  @@index([userId])
+}
+
+model VerificationRequest {
+  id               String              @id @default(cuid())
+  userId           String              @unique
+  documentType     String              // 'national_id', 'passport', 'drivers_license'
+  documentFrontUrl String
+  documentBackUrl  String?
+  description      String?
+  status           VerificationStatus  @default(PENDING)
+  reviewerId       String?
+  reviewerNotes    String?
+  submittedAt      DateTime            @default(now())
+  reviewedAt       DateTime?
+  user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviewer         User?               @relation("VerificationReviewer", fields: [reviewerId], references: [id])
+
+  @@index([status])
+}
+
+enum VerificationStatus {
+  PENDING
+  IN_REVIEW
+  APPROVED
+  REJECTED
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
+}
+
+model Bookmark {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([userId])
+}
+
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+  following   User     @relation("UserFollowing", fields: [followingId], references: [id], onDelete: Cascade)
+  follower    User     @relation("UserFollowers", fields: [followerId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+model Repost {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
+}
+
+model QuotePost {
+  id        String   @id @default(cuid())
+  postId    String   @unique
+  content   String
+  authorId  String
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([authorId])
+}
+
+model Hashtag {
+  id        String   @id @default(cuid())
+  name      String
+  postId    String
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([name, postId])
+  @@index([name])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  title     String
+  content   String?
+  read      Boolean  @default(false)
+  relatedId String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([read])
+  @@index([createdAt])
+}
+
+model Message {
+  id         String   @id @default(cuid())
+  senderId   String
+  receiverId String
+  content    String
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  sender     User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([read])
+  @@index([createdAt])
+}
+
+model Report {
+  id         String   @id @default(cuid())
+  reporterId String
+  reportedId String
+  postId     String?
+  reason     String
+  status     String   @default("pending")
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  post       Post?    @relation(fields: [postId], references: [id])
+  reported   User     @relation("UserReports", fields: [reportedId], references: [id], onDelete: Cascade)
+  reporter   User     @relation("ReportedBy", fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@index([reporterId])
+  @@index([reportedId])
+  @@index([status])
+}
+
+model SupportTicket {
+  id        String   @id @default(cuid())
+  userId    String
+  subject   String
+  message   String
+  status    String   @default("open")
+  response  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+}
+
+model Translation {
+  id        String   @id @default(cuid())
+  postId    String
+  language  String
+  content   String
+  createdAt DateTime @default(now())
+
+  @@unique([postId, language])
+  @@index([postId])
+}
+
+enum UserRole {
+  USER
+  MODERATOR
+  ADMIN
+}
